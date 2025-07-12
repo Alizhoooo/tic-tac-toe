@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the game board cells */
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        /* Responsive sizing for smaller screens */
+        @media (max-width: 640px) {
+            .cell {
+                width: 80px;
+                height: 80px;
+                font-size: 2.5rem;
+            }
+        }
+        /* Styles for the X and O players */
+        .player-x {
+            color: #38bdf8; /* sky-500 */
+        }
+        .player-o {
+            color: #f97316; /* orange-500 */
+        }
+        /* Style for winning cells to highlight them */
+        .winning-cell {
+            background-color: #1e40af; /* blue-900 */
+        }
+        /* Style for the winning status message */
+        .status-win {
+            color: #4ade80; /* green-400 */
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="text-center">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2">Tic-Tac-Toe</h1>
+        <p class="text-lg text-gray-400 mb-8">First to 3 in a row wins!</p>
+    </div>
+
+    <!-- Main game container -->
+    <main class="flex flex-col items-center">
+        <!-- Scoreboard to track wins -->
+        <div id="scoreboard" class="flex justify-between w-64 md:w-80 text-xl mb-4 bg-gray-800 p-3 rounded-lg">
+            <div class="player-x">Player X: <span id="score-x" class="font-bold">0</span></div>
+            <div class="player-o">Player O: <span id="score-o" class="font-bold">0</span></div>
+        </div>
+
+        <!-- Status display to show game state -->
+        <div id="status" class="text-2xl font-medium mb-6 h-8">Player X's turn</div>
+        
+        <!-- Game board grid -->
+        <div id="game-board" class="grid grid-cols-3 gap-2 bg-gray-700 p-2 rounded-lg shadow-lg">
+            <!-- The 9 cells of the board will be created by JavaScript -->
+        </div>
+
+        <!-- Restart button for a new round -->
+        <button id="restart-button" class="mt-8 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+            New Round
+        </button>
+    </main>
+
+    <script>
+        // DOM element references
+        const gameBoard = document.getElementById('game-board');
+        const statusDisplay = document.getElementById('status');
+        const restartButton = document.getElementById('restart-button');
+        const scoreXDisplay = document.getElementById('score-x');
+        const scoreODisplay = document.getElementById('score-o');
+
+        // Game state variables
+        let gameActive = true;
+        let currentPlayer = 'X';
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let scoreX = 0;
+        let scoreO = 0;
+
+        // Winning combinations
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+            [0, 4, 8], [2, 4, 6]             // diagonals
+        ];
+
+        // Messages for different game outcomes
+        const winningMessage = () => `🎉 Player ${currentPlayer} Wins! 🎉`;
+        const drawMessage = () => `Game ended in a draw!`;
+        const currentPlayerTurn = () => `Player ${currentPlayer}'s turn`;
+
+        /**
+         * Initializes or restarts the game for a new round.
+         * Creates the cells, sets the initial status, and adds event listeners.
+         */
+        function initializeGame() {
+            gameBoard.innerHTML = ''; // Clear the board first
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            gameActive = true;
+            // The winner of the last round starts the new one, or X if it was a draw.
+            statusDisplay.innerHTML = currentPlayerTurn();
+            statusDisplay.classList.remove('status-win');
+
+            // Create 9 cells and add them to the board
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell', 'bg-gray-800', 'rounded-md');
+                cell.setAttribute('data-cell-index', i);
+                cell.addEventListener('click', handleCellClick);
+                gameBoard.appendChild(cell);
+            }
+        }
+        
+        /**
+         * Handles a click on any of the cells.
+         * @param {MouseEvent} clickedCellEvent - The click event.
+         */
+        function handleCellClick(clickedCellEvent) {
+            const clickedCell = clickedCellEvent.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-cell-index'));
+
+            // If cell is already played or game is not active, do nothing
+            if (gameState[clickedCellIndex] !== "" || !gameActive) {
+                return;
+            }
+
+            // Process the move
+            handleCellPlayed(clickedCell, clickedCellIndex);
+            handleResultValidation();
+        }
+
+        /**
+         * Updates the game state and UI for a played cell.
+         * @param {HTMLElement} clickedCell - The DOM element of the cell that was clicked.
+         * @param {number} clickedCellIndex - The index of the cell (0-8).
+         */
+        function handleCellPlayed(clickedCell, clickedCellIndex) {
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.innerHTML = currentPlayer;
+            clickedCell.classList.add(currentPlayer === 'X' ? 'player-x' : 'player-o');
+        }
+
+        /**
+         * Checks if the game has been won, is a draw, or should continue.
+         */
+        function handleResultValidation() {
+            let roundWon = false;
+            let winningCombo = [];
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const winCondition = winningConditions[i];
+                let a = gameState[winCondition[0]];
+                let b = gameState[winCondition[1]];
+                let c = gameState[winCondition[2]];
+
+                if (a === '' || b === '' || c === '') {
+                    continue; // Skip if any cell in the condition is empty
+                }
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningCombo = winCondition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                statusDisplay.innerHTML = winningMessage();
+                statusDisplay.classList.add('status-win');
+                gameActive = false;
+                
+                // Update score based on the winner
+                if (currentPlayer === 'X') {
+                    scoreX++;
+                    scoreXDisplay.innerText = scoreX;
+                } else {
+                    scoreO++;
+                    scoreODisplay.innerText = scoreO;
+                }
+
+                // Highlight the winning cells
+                winningCombo.forEach(index => {
+                    document.querySelector(`[data-cell-index='${index}']`).classList.add('winning-cell');
+                });
+                return;
+            }
+
+            // Check for a draw
+            let roundDraw = !gameState.includes("");
+            if (roundDraw) {
+                statusDisplay.innerHTML = drawMessage();
+                gameActive = false;
+                return;
+            }
+
+            // If no winner and no draw, switch players for the next turn
+            handlePlayerChange();
+        }
+
+        /**
+         * Switches the current player and updates the status display.
+         */
+        function handlePlayerChange() {
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            statusDisplay.innerHTML = currentPlayerTurn();
+        }
+
+        // Add event listener to the restart button
+        restartButton.addEventListener('click', initializeGame);
+
+        // Start the game for the first time on window load
+        window.onload = initializeGame;
+    </script>
+
+</body>
+</html>
